@@ -1,0 +1,4 @@
+qrcode
+pillow
+pyyaml
+base32-crockford

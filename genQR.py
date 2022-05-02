@@ -2,81 +2,78 @@ import qrcode.main
 from string import Template
 from io import open
 import os, os.path
+import base32_crockford as b32
+import yaml
 
-latexPre=Template(r"""
-\documentclass[12pt,a4paper,oneside]{memoir}
-\usepackage{graphicx}
-\usepackage{geometry}
-\geometry{a4paper, margin=1cm,
-  marginparwidth=0cm,
-  marginpar=0cm
-}
-\graphicspath{ {${baseId}Images/} }
-\begin{document}
-\pagestyle{empty}
-""")
+def doWithConfig(config, nPages=1, baseDir=".", startNr=1):
+    templates = {
+        "latexPre": Template(config["latexPre"]),
+        "singleEl": Template(config["singleEl"])
+    }
+    emit(config, templates, nPages=nPages, baseDir=baseDir, startNr=startNr)
 
-latexPage=r"""
-\begin{tabular}{l p{1.2cm} r}
-\begin{tabular}{cc}
-"""
-
-singleEl=Template(r"""
-      \hline
-      \raisebox{-0.75\height}{\includegraphics[width=2cm]{${fullId}.png}} & \parbox[t]{5.2cm}{
-        {\small http://ostiaforumproject.com/} \\ 2017/
-        \vspace{-0.4cm}\begin{flushright} {\Large ${fullId}} \end{flushright}} \\
-""")
-
-split=r"""
-      \hline
-\end{tabular}
-&
-&
-\begin{tabular}{cc}
-"""
-
-endPage=r"""
-      \hline
-\end{tabular}
-\end{tabular}
-"""
-
-endDoc=r"""
-\end{document}
-"""
-
-def emit(baseId, nPages=1, baseDir=".", startNr=1):
+def emit(config, templates, nPages=1, baseDir=".", startNr=1):
     """emits nPages of QR codes starting of baseId with number startNr"""
-    outFName=os.path.join(baseDir, baseId + ".tex")
-    qrDirName=os.path.join(baseDir, baseId + "Images")
+    outBase = config["outName"]
+    outFName=os.path.join(baseDir, outBase + ".tex")
+    qrDirName=os.path.join(baseDir, outBase + "Images")
     if not os.path.exists(qrDirName):
         os.makedirs(qrDirName)
     with open(outFName, "w", encoding="utf-8") as outF:
-        outF.write(latexPre.substitute(baseId=baseId))
+        outF.write(templates["latexPre"].substitute(**config))
         ii = startNr - 1
         for iPage in range(nPages):
-            outF.write(latexPage)
-            for icol in range(2):
-                for i in range(13):
+            outF.write(config["latexPage"])
+            for icol in range(config["nCol"]):
+                for i in range(config["nRow"]):
                     ii += 1
-                    fullId = ("%s-%03d" % (baseId, ii))
+                    if config["base32"]:
+                        countedId = b32.encode(ii)
+                    else:
+                        counterId = str(ii)
+                    fullId = config["baseId"] + config["spacer"] + counterId.rjust(config['nDigits'], "0")
                     qrCode = qrcode.main.QRCode()
-                    qrCode.add_data("http://ostiaforumproject.com/2017/" + fullId)
+                    qrCode.add_data(config["baseUri"] + fullId)
                     qrCode.make()
                     img=qrCode.make_image()
                     img.save(os.path.join(qrDirName, fullId + ".png"))
-                    outF.write(singleEl.substitute(fullId=fullId))
+                    outF.write(templates["singleEl"].substitute(fullId=fullId))
                 if icol == 0:
-                    outF.write(split)
-            outF.write(endPage)
-        outF.write(endDoc)
+                    outF.write(config["split"])
+            outF.write(config["endPage"])
+        outF.write(config["endDoc"])
 
 if __name__=="__main__":
     import argparse
     parser = argparse.ArgumentParser(description='Emits qrcodes identifiers and latex document to print them easily.')
-    parser.add_argument("baseId", help="base identifier")
-    parser.add_argument("--n-pages", type=int, default=1, metavar='N')
+    parser.add_argument("--base-id", help="base identifier")
+    parser.add_argument("--out-name", help="base name of the out file and directory (defaults to the base-id)")
+    parser.add_argument("--n-pages", type=int, help="number of pages to print", default=1, metavar='N')
+    parser.add_argument("--after", help="The number/base32 code to start after (defaults to 0, and thus starts with 1, set to -1 to start from 0)"default="0", metavar='N')
+    parser.add_argument("--config", default="config.yaml", metavar='N')
+    parser.add_argument("--out-directory", help="directory in which to output the latex and qr codes", default=".")
     args = parser.parse_args()
 
-    emit(args.baseId, nPages=args.n_pages)
+    try:
+        config = yaml.safe_load(open(args.config))
+    except:
+        import traceback, sys
+        print("Failed to get the configuration", args.config)
+        traceback.print_exc()
+        sys.exit(1)
+    config["baseId"] = args.base_id
+    config["outName"] = args.out_name if args.out_name else (args.base_id if args.base_id else "qr")
+    startNr = 0;
+    if args.after != "-1":
+        if config["base32"]:
+            startNr = b32.decode(args.after)
+        else:
+            startNr = int(args.after)
+        startNr += 1
+    print(config);
+    doWithConfig(config, nPages=args.n_pages, startNr = startNr)
+
+if false:
+    # tests
+    import filecmp
+    doWithConfig(ostia)

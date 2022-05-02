@@ -1,0 +1,47 @@
+nCol: 2
+nRow: 13
+spacer: "-"
+base32: false
+nDigits: 3
+baseUri: "http://ostiaforumproject.com/2017/"
+latexPre: |
+  \documentclass[12pt,a4paper,oneside]{memoir}
+  \usepackage{graphicx}
+  \usepackage{geometry}
+  \geometry{a4paper, margin=1cm,
+    marginparwidth=0cm,
+    marginpar=0cm
+  }
+  \graphicspath{ {${baseId}Images/} }
+  \begin{document}
+  \pagestyle{empty}
+
+
+latexPage: |
+  \begin{tabular}{l p{1.2cm} r}
+  \begin{tabular}{cc}
+
+
+singleEl: |2
+        \hline
+        \raisebox{-0.75\height}{\includegraphics[width=2cm]{${fullId}.png}} & \parbox[t]{5.2cm}{
+          {\small http://ostiaforumproject.com/} \\ 2017/
+          \vspace{-0.4cm}\begin{flushright} {\Large ${fullId}} \end{flushright}} \\
+
+
+split: |2
+        \hline
+  \end{tabular}
+  &
+  &
+  \begin{tabular}{cc}
+
+
+endPage: |2
+        \hline
+  \end{tabular}
+  \end{tabular}
+
+
+endDoc: |
+  \end{document}
