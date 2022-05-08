@@ -1,9 +1,9 @@
 nCol: 2
 nRow: 13
 spacer: "-"
-base32: false
+base32: true
 nDigits: 3
-baseUri: "http://ostiaforumproject.com/2016/"
+baseUri: "http://kitabi.eu/tags/"
 latexPre: |
   \documentclass[12pt,a4paper,oneside]{memoir}
   \usepackage{graphicx}
@@ -25,7 +25,7 @@ latexPage: |
 singleEl: |2
         \hline
         \raisebox{-0.75\height}{\includegraphics[width=2cm]{${fullId}.png}} & \parbox[t]{5.2cm}{
-          {\small http://ostiaforumproject.com/} \\ 2016/
+          {\small http://kitabi.eu/tags/} \\
           \vspace{-0.4cm}\begin{flushright} {\Large ${fullId}} \end{flushright}} \\
 
 

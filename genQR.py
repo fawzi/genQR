@@ -1,17 +1,37 @@
 import qrcode.main
 from string import Template
 from io import open
-import os, os.path
+import os, os.path, sys
 import base32_crockford as b32
 import yaml
 
 
-def doWithConfig(config, nPages=1, baseDir=".", startNr=1):
+def doInDir(baseDir=".", nPages=1, after=0, configName="config.yaml", overrides={}):
+    configPath = os.path.join(baseDir, configName)
+    try:
+        with open(configPath) as f:
+            config = yaml.safe_load(f)
+    except:
+        raise Exception(
+            "Failed to find a valid configuration at ${configPath}".format(
+                configPath=os.path.abspath(configPath)
+            )
+        )
+    config.update(overrides)
+    startNr = 0
+    if isinstance(after, int):
+        startNr = after + 1
+    elif after != "-1":
+        if config["base32"]:
+            startNr = b32.decode(after)
+        else:
+            startNr = int(after)
+        startNr += 1
     templates = {
         "latexPre": Template(config["latexPre"]),
         "singleEl": Template(config["singleEl"]),
     }
-    emit(config, templates, nPages=nPages, baseDir=baseDir, startNr=startNr)
+    return emit(config, templates, nPages=nPages, baseDir=baseDir, startNr=startNr)
 
 
 def emit(config, templates, nPages=1, baseDir=".", startNr=1):
@@ -30,7 +50,7 @@ def emit(config, templates, nPages=1, baseDir=".", startNr=1):
                 for i in range(config["nRow"]):
                     ii += 1
                     if config["base32"]:
-                        countedId = b32.encode(ii)
+                        counterId = b32.encode(ii)
                     else:
                         counterId = str(ii)
                     fullId = (
@@ -48,6 +68,7 @@ def emit(config, templates, nPages=1, baseDir=".", startNr=1):
                     outF.write(config["split"])
             outF.write(config["endPage"])
         outF.write(config["endDoc"])
+    return outFName
 
 
 if __name__ == "__main__":
@@ -70,38 +91,38 @@ if __name__ == "__main__":
         default="0",
         metavar="N",
     )
-    parser.add_argument("--config", default="config.yaml", metavar="N")
     parser.add_argument(
-        "--out-directory",
-        help="directory in which to output the latex and qr codes",
+        "--config",
+        help="name of the config file (defaults to config.yaml)",
+        default="config.yaml",
+    )
+    parser.add_argument(
+        "--base-directory",
+        help="directory in which to output the latex and qr codes, and look for the config (if not directly given)",
         default=".",
     )
     args = parser.parse_args()
 
-    try:
-        config = yaml.safe_load(open(args.config))
-    except:
-        import traceback, sys
-
-        print("Failed to get the configuration", args.config)
-        traceback.print_exc()
-        sys.exit(1)
-    config["baseId"] = args.base_id
-    config["outName"] = (
-        args.out_name if args.out_name else (args.base_id if args.base_id else "qr")
-    )
+    overrides = {
+        "outName": args.out_name
+        if args.out_name
+        else (args.base_id if args.base_id else "qr")
+    }
+    if args.base_id:
+        overrides["baseId"] = args.base_id
     startNr = 0
-    if args.after != "-1":
-        if config["base32"]:
-            startNr = b32.decode(args.after)
-        else:
-            startNr = int(args.after)
-        startNr += 1
-    print(config)
-    doWithConfig(config, nPages=args.n_pages, startNr=startNr)
-
-if False:
-    # tests
-    import filecmp
-
-    doWithConfig(ostia)
+    targetLatex = doInDir(
+        baseDir=args.base_directory,
+        nPages=args.n_pages,
+        after=args.after,
+        overrides=overrides,
+    )
+    (dir, latexFile) = os.path.split(targetLatex)
+    sys.stdout.write(
+        """generated {latexFile}, for the pdf execute:
+    cd {dir!r}
+    pdflatex {latexFile!r}
+""".format(
+            dir=dir, latexFile=latexFile
+        )
+    )
